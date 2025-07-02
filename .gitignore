@@ -1,0 +1,8 @@
+build/ library/ local/ temp/ dist/ .settings/ *.log *.log.meta *.meta *.db *.db-journal *.db.meta
+build-web-/ build-jsb-/ build-android-/ build-ios-/ build-win32-/ build-mac-/ build-linux-*/ packages/
+node_modules/ npm-debug.log yarn.lock package-lock.json
+.vscode/ .idea/ *.suo .ntvs*.njsproj *.sln *.swp *.sublime-project *.sublime-workspace
+.DS_Store Thumbs.db desktop.ini
+*.backup *.tmp *.temp *.cache *.bak *.old *.orig *.rej *~
+project.json settings.json *.key *.pem *.cert *.pfx *.env *.env.local .env..local
+*.apk *.aab *.ipa *.app *.exe *.zip *.tar.gz *.tgz
