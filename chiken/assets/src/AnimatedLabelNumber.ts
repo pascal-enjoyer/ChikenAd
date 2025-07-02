@@ -33,7 +33,7 @@ export class AnimatedLabelNumber extends Component {
         // Это значение будет перезаписано в onEnable перед анимацией
         this._currentDisplayedValue = 0; 
         this.targetLabel.string = this.roundToInt ? 
-            Math.floor(this._currentDisplayedValue).toString() : 
+            Math.floor(this._currentDisplayedValue).toString(): 
             this._currentDisplayedValue.toFixed(2);
     }
 
@@ -41,7 +41,7 @@ export class AnimatedLabelNumber extends Component {
         // Убедимся, что анимация всегда начинается с 0
         this._currentDisplayedValue = 0; 
         this.targetLabel.string = this.roundToInt ? 
-            Math.floor(this._currentDisplayedValue).toString() : 
+            Math.floor(this._currentDisplayedValue).toString(): 
             this._currentDisplayedValue.toFixed(2);
 
         // Запускаем анимацию от 0 до initialValue
@@ -66,14 +66,14 @@ export class AnimatedLabelNumber extends Component {
                 onUpdate: (target: { value: number }) => {
                     if (this.targetLabel) {
                         this.targetLabel.string = this.roundToInt ?
-                            Math.floor(target.value).toString() :
+                            Math.floor(target.value).toString():
                             target.value.toFixed(2);
                     }
                 },
                 onComplete: () => {
                     if (this.targetLabel) {
                         this.targetLabel.string = this.roundToInt ?
-                            Math.floor(targetValue).toString() :
+                            Math.floor(targetValue).toString():
                             targetValue.toFixed(2);
                     }
                     this._currentDisplayedValue = targetValue;
@@ -92,7 +92,7 @@ export class AnimatedLabelNumber extends Component {
             this._activeTween = null;
         }
         this._currentDisplayedValue = value;
-        this.targetLabel.string = this.roundToInt ? Math.floor(value).toString() : value.toFixed(2);
+        this.targetLabel.string = this.roundToInt ? Math.floor(value).toString() + 'EUR'  : value.toFixed(2) + 'EUR' ;
     }
 
     public getCurrentDisplayedValue(): number {

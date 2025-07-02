@@ -1,5 +1,8 @@
-import { _decorator, Component, Node, Vec3, tween, Animation, AudioClip, AudioSource } from 'cc';
+import { _decorator, Component, Node, Vec3, tween, Animation, AudioClip, AudioSource, AnimationClip } from 'cc';
 const { ccclass, property } = _decorator;
+
+// Определяем имя события
+export const LAST_JUMP_COMPLETED_EVENT = 'last-jump-completed';
 
 @ccclass('CharacterJump')
 export class CharacterJump extends Component {
@@ -28,10 +31,10 @@ export class CharacterJump extends Component {
     landDropDuration: number = 0.3;
 
     @property
-    jumpAnimationName: string = 'jump';
+    jumpAnimationName: string = 'Bird'; // Анимация для начала прыжка
 
     @property
-    landAnimationName: string = 'land';
+    landAnimationName: string = 'land'; // Анимация для посадки (опционально)
 
     @property
     stopAnimationWhenIdle: boolean = true;
@@ -48,6 +51,9 @@ export class CharacterJump extends Component {
     @property(AudioClip)
     jumpSound: AudioClip | null = null;
 
+    @property({ type: Node, tooltip: 'Узел, с которого брать компонент Animation' })
+    animationNode: Node | null = null;
+
     private currentTargetPointIndex: number = 0;
     private animation: Animation | null = null;
     private audioSource: AudioSource | null = null;
@@ -55,8 +61,28 @@ export class CharacterJump extends Component {
     public hasJumped: boolean = false; // Флаг первого прыжка
 
     start() {
-        this.animation = this.getComponent(Animation);
+        // Получаем компонент Animation с указанного animationNode или текущего узла
+        this.animation = this.animationNode ? this.animationNode.getComponent(Animation) : this.getComponent(Animation);
         this.audioSource = this.getComponent(AudioSource);
+
+        if (this.animation) {
+            // Проверяем, существует ли анимация Bird
+            const clips = this.animation.clips;
+            const birdClipExists = clips.some(clip => clip && clip.name === this.jumpAnimationName);
+            if (!birdClipExists) {
+                console.warn(`CharacterJump: Animation clip "${this.jumpAnimationName}" not found on node ${this.animationNode ? this.animationNode.name : this.node.name}`);
+                this.animation = null; // Отключаем анимацию, если клип не найден
+            }
+            // Проверяем, существует ли анимация посадки (если используется)
+            if (this.landAnimationName) {
+                const landClipExists = clips.some(clip => clip && clip.name === this.landAnimationName);
+                if (!landClipExists) {
+                    console.warn(`CharacterJump: Landing animation clip "${this.landAnimationName}" not found on node ${this.animationNode ? this.animationNode.name : this.node.name}`);
+                }
+            }
+        } else {
+            console.warn(`CharacterJump: Animation component not found on node ${this.animationNode ? this.animationNode.name : this.node.name}`);
+        }
 
         if (this.stopAnimationWhenIdle && this.animation) {
             this.animation.stop();
@@ -86,6 +112,10 @@ export class CharacterJump extends Component {
             }
 
             if (isLast) {
+                // Отправляем событие последнего прыжка
+                console.log('CharacterJump: Emitting LAST_JUMP_COMPLETED_EVENT');
+                this.node.emit(LAST_JUMP_COMPLETED_EVENT);
+                // Активируем финальный экран с задержкой
                 this.scheduleOnce(this.activateFinishScreen, this.finishScreenDelay);
             } else {
                 this.currentTargetPointIndex = nextIndex;
@@ -108,6 +138,10 @@ export class CharacterJump extends Component {
             }
 
             if (isLast) {
+                // Отправляем событие последнего прыжка
+                console.log('CharacterJump: Emitting LAST_JUMP_COMPLETED_EVENT');
+                this.node.emit(LAST_JUMP_COMPLETED_EVENT);
+                // Активируем финальный экран с задержкой
                 this.scheduleOnce(this.activateFinishScreen, this.finishScreenDelay);
             }
         });
@@ -127,7 +161,9 @@ export class CharacterJump extends Component {
             (startPos.z + initialLandPos.z) / 2
         );
 
+        // Воспроизводим анимацию Bird в начале прыжка
         if (this.animation && this.jumpAnimationName) {
+            console.log(`CharacterJump: Playing animation "${this.jumpAnimationName}" at jump start`);
             this.animation.play(this.jumpAnimationName);
         }
 
@@ -155,7 +191,9 @@ export class CharacterJump extends Component {
         const currentPos = this.node.position.clone();
         const sinkPos = new Vec3(currentPos.x, currentPos.y - this.landingSinkAmount, currentPos.z);
 
+        // Воспроизводим анимацию посадки, если указана
         if (this.animation && this.landAnimationName) {
+            console.log(`CharacterJump: Playing landing animation "${this.landAnimationName}"`);
             this.animation.play(this.landAnimationName);
         }
 
@@ -170,6 +208,7 @@ export class CharacterJump extends Component {
     }
 
     private activateFinishScreen() {
+        console.log('CharacterJump: Activating finish screen');
         if (this.finishScreenNode) this.finishScreenNode.active = true;
         if (this.finishScreenLand) this.finishScreenLand.active = true;
     }
