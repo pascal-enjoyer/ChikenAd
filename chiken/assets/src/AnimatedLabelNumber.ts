@@ -92,7 +92,7 @@ export class AnimatedLabelNumber extends Component {
             this._activeTween = null;
         }
         this._currentDisplayedValue = value;
-        this.targetLabel.string = this.roundToInt ? Math.floor(value).toString() + 'EUR'  : value.toFixed(2) + 'EUR' ;
+        this.targetLabel.string = this.roundToInt ? Math.floor(value).toString() : value.toFixed(2);
     }
 
     public getCurrentDisplayedValue(): number {
