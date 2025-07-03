@@ -1,5 +1,8 @@
-import { _decorator, Component, Node, Camera, Vec3, view, tween } from 'cc';
-import { CharacterJump } from './CharacterJump';
+// CameraFollow.ts
+// Минимальная версия для 2D-проекта: камера двигается ТОЛЬКО по X.
+// Ось Y и ось Z вообще не трогаются.
+
+import { _decorator, Component, Node, Camera, Vec3, view } from 'cc';
 const { ccclass, property } = _decorator;
 
 @ccclass('CameraFollow')
@@ -11,9 +14,6 @@ export class CameraFollow extends Component {
 
     @property({ type: Camera, tooltip: 'Камера. Если не указана, берётся с этого узла.' })
     gameCamera: Camera | null = null;
-
-    @property({ type: CharacterJump, tooltip: 'Компонент CharacterJump' })
-    characterJump: CharacterJump | null = null;
 
     @property({ tooltip: 'Смещение по X в портретной ориентации' })
     offsetPortraitX = 0;
@@ -27,9 +27,6 @@ export class CameraFollow extends Component {
     @property({ slide: true, range: [1, 20, 1], tooltip: 'Скорость плавного следования' })
     followSpeed = 5;
 
-    @property({ tooltip: 'Длительность перехода оффсета в портретном режиме' })
-    offsetTransitionDuration = 0.5;
-
     /* ─────────────── Приватные поля ─────────────── */
 
     private _currentOffsetX = 0;
@@ -37,21 +34,19 @@ export class CameraFollow extends Component {
     private _tempCamPos = new Vec3();
     private _initialY = 0;
     private _initialZ = 0;
-    private _hasOffsetTransitioned = false; // Флаг для отслеживания перехода оффсета
 
     /* ─────────────── Жизненный цикл ─────────────── */
 
     start () {
         if (!this.target) { console.warn('CameraFollow: Target не назначен'); this.enabled = false; return; }
         if (!this.gameCamera) this.gameCamera = this.getComponent(Camera);
-        if (!this.characterJump) this.characterJump = this.target.getComponent(CharacterJump);
 
         // Сохраняем начальные Y и Z, чтобы никогда их не менять
         this.node.getWorldPosition(this._tempCamPos);
         this._initialY = this._tempCamPos.y;
         this._initialZ = this._tempCamPos.z;
 
-        // Настраиваем оффсет под текущую ориентацию
+        // Настраиваем офсет под текущую ориентацию
         const isPortrait = view.getVisibleSize().height >= view.getVisibleSize().width;
         this.applyOffsetForOrientation(isPortrait);
 
@@ -59,34 +54,13 @@ export class CameraFollow extends Component {
         this.updateCameraPosition(1);
     }
 
-    /** Меняем активный оффсет при смене ориентации */
+    /** Меняем активный офсет при смене ориентации */
     public applyOffsetForOrientation (isPortrait: boolean) {
-        if (isPortrait && this.characterJump && this.characterJump.hasJumped && !this._hasOffsetTransitioned) {
-            // Создаём временный объект для анимации оффсета
-            const offsetObj = { value: this._currentOffsetX };
-            tween(offsetObj)
-                .to(this.offsetTransitionDuration, { value: 0 }, { 
-                    easing: 'sineOut',
-                    onUpdate: (target: any) => {
-                        this._currentOffsetX = target.value; // Обновляем _currentOffsetX на каждом кадре твина
-                    }
-                })
-                .call(() => {
-                    this._hasOffsetTransitioned = true; // Отмечаем, что переход выполнен
-                })
-                .start();
-        } else if (!isPortrait || (isPortrait && (!this.characterJump || !this.characterJump.hasJumped))) {
-            // Используем начальный оффсет для портретного или ландшафтного режима
-            this._currentOffsetX = isPortrait ? this.offsetPortraitX : this.offsetLandscapeX;
-            this._hasOffsetTransitioned = false; // Сбрасываем флаг при смене ориентации или до прыжка
-        }
+        this._currentOffsetX = isPortrait ? this.offsetPortraitX : this.offsetLandscapeX;
     }
 
     lateUpdate (dt: number) {
         if (!this.target) return;
-        // Проверяем ориентацию каждый кадр, чтобы обновить оффсет при смене
-        const isPortrait = view.getVisibleSize().height >= view.getVisibleSize().width;
-        this.applyOffsetForOrientation(isPortrait);
         this.updateCameraPosition(dt);
     }
 
