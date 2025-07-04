@@ -3,12 +3,11 @@ const { ccclass, property } = _decorator;
 
 @ccclass('AnimatedLabelNumber')
 export class AnimatedLabelNumber extends Component {
-
     @property({ type: Label })
     private targetLabel: Label | null = null;
 
-    @property(CCInteger)
-    private initialValue: number = 0; // Целевое значение для начальной анимации (куда анимируем)
+    @property({ type: CCInteger, visible: true, serializable: true })
+    private _initialValue: number = 0; // Свойство для инспектора
 
     @property
     private animationDuration: number = 0.5;
@@ -16,8 +15,23 @@ export class AnimatedLabelNumber extends Component {
     @property
     private roundToInt: boolean = true;
 
+    @property({ tooltip: 'Добавлять " EUR" после числа' })
+    private addEurSuffix: boolean = true;
+
     private _currentDisplayedValue: number = 0;
     private _activeTween: Tween<any> | null = null;
+
+    private formatValue(value: number): string {
+        let formattedValue = this.roundToInt
+            ? Math.floor(value).toString()
+            : value.toFixed(2);
+        
+        if (this.addEurSuffix) {
+            formattedValue += ' EUR';
+        }
+        
+        return formattedValue;
+    }
 
     onLoad() {
         if (!this.targetLabel) {
@@ -25,31 +39,27 @@ export class AnimatedLabelNumber extends Component {
         }
 
         if (!this.targetLabel) {
+            console.warn(`AnimatedLabelNumber on ${this.node.name}: No targetLabel found, disabling component`);
             this.enabled = false;
             return;
         }
-        
-        // Устанавливаем начальное значение для отображения, чтобы избежать пустого лейбла
-        // Это значение будет перезаписано в onEnable перед анимацией
-        this._currentDisplayedValue = 0; 
-        this.targetLabel.string = this.roundToInt ? 
-            Math.floor(this._currentDisplayedValue).toString(): 
-            this._currentDisplayedValue.toFixed(2);
+
+        console.log(`AnimatedLabelNumber on ${this.node.name}: onLoad, initialValue=${this.initialValue}`);
+        this._currentDisplayedValue = 0;
+        this.targetLabel.string = this.formatValue(this._currentDisplayedValue);
     }
 
     onEnable() {
-        // Убедимся, что анимация всегда начинается с 0
-        this._currentDisplayedValue = 0; 
-        this.targetLabel.string = this.roundToInt ? 
-            Math.floor(this._currentDisplayedValue).toString(): 
-            this._currentDisplayedValue.toFixed(2);
+        console.log(`AnimatedLabelNumber on ${this.node.name}: onEnable, animating to initialValue=${this.initialValue}`);
+        this._currentDisplayedValue = 0;
+        this.targetLabel!.string = this.formatValue(this._currentDisplayedValue);
 
-        // Запускаем анимацию от 0 до initialValue
         this.animateTo(this.initialValue, this.animationDuration);
     }
 
     public animateTo(targetValue: number, duration?: number) {
         if (!this.targetLabel) {
+            console.warn(`AnimatedLabelNumber on ${this.node.name}: No targetLabel for animation`);
             return;
         }
 
@@ -57,27 +67,24 @@ export class AnimatedLabelNumber extends Component {
             this._activeTween.stop();
         }
 
-        let startValue = this._currentDisplayedValue; // Начальное значение для новой анимации (будет 0 благодаря onEnable)
+        let startValue = this._currentDisplayedValue;
+        console.log(`AnimatedLabelNumber on ${this.node.name}: Animating from ${startValue} to ${targetValue}`);
 
         const animProxy = { value: startValue };
-
         this._activeTween = tween(animProxy)
             .to(duration !== undefined ? duration : this.animationDuration, { value: targetValue }, {
                 onUpdate: (target: { value: number }) => {
                     if (this.targetLabel) {
-                        this.targetLabel.string = this.roundToInt ?
-                            Math.floor(target.value).toString():
-                            target.value.toFixed(2);
+                        this.targetLabel.string = this.formatValue(target.value);
                     }
                 },
                 onComplete: () => {
                     if (this.targetLabel) {
-                        this.targetLabel.string = this.roundToInt ?
-                            Math.floor(targetValue).toString():
-                            targetValue.toFixed(2);
+                        this.targetLabel.string = this.formatValue(targetValue);
                     }
                     this._currentDisplayedValue = targetValue;
                     this._activeTween = null;
+                    console.log(`AnimatedLabelNumber on ${this.node.name}: Animation completed to ${targetValue}`);
                 }
             })
             .start();
@@ -85,6 +92,7 @@ export class AnimatedLabelNumber extends Component {
 
     public setValue(value: number) {
         if (!this.targetLabel) {
+            console.warn(`AnimatedLabelNumber on ${this.node.name}: No targetLabel for setValue`);
             return;
         }
         if (this._activeTween) {
@@ -92,7 +100,18 @@ export class AnimatedLabelNumber extends Component {
             this._activeTween = null;
         }
         this._currentDisplayedValue = value;
-        this.targetLabel.string = this.roundToInt ? Math.floor(value).toString() : value.toFixed(2);
+        this.targetLabel.string = this.formatValue(value);
+        console.log(`AnimatedLabelNumber on ${this.node.name}: setValue called with ${value}`);
+    }
+
+    // Геттер и сеттер для совместимости с JumpPointSpriteActivator
+    public set initialValue(value: number) {
+        this._initialValue = value;
+        console.log(`AnimatedLabelNumber on ${this.node.name}: initialValue set to ${value}`);
+    }
+
+    public get initialValue(): number {
+        return this._initialValue;
     }
 
     public getCurrentDisplayedValue(): number {

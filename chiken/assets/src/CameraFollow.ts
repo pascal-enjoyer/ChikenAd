@@ -1,93 +1,186 @@
-// CameraFollow.ts
-// Минимальная версия для 2D-проекта: камера двигается ТОЛЬКО по X.
-// Ось Y и ось Z вообще не трогаются.
-
-import { _decorator, Component, Node, Camera, Vec3, view } from 'cc';
+import { _decorator, Component, Node, Camera, Vec3, view, tween, geometry } from 'cc';
+import { CharacterJump } from './CharacterJump';
 const { ccclass, property } = _decorator;
 
 @ccclass('CameraFollow')
 export class CameraFollow extends Component {
-    /* ─────────────── Публичные свойства ─────────────── */
+    /* Публичные свойства */
+    @property({ type: Node }) target: Node | null = null;
+    @property({ type: Node }) finalNode: Node | null = null;
+    @property({ type: Node }) leftEdgeNode: Node | null = null;
+    @property({ type: Camera }) gameCamera: Camera | null = null;
+    @property({ type: CharacterJump }) characterJump: CharacterJump | null = null;
+    @property offsetPortraitX = 0; // Смещение в мировых координатах
+    @property smoothFollow = true;
+    @property followSpeed = 5;
+    @property offsetTransitionDuration = 0.5;
 
-    @property({ type: Node, tooltip: 'Узел-цель (например, персонаж)' })
-    target: Node | null = null;
-
-    @property({ type: Camera, tooltip: 'Камера. Если не указана, берётся с этого узла.' })
-    gameCamera: Camera | null = null;
-
-    @property({ tooltip: 'Смещение по X в портретной ориентации' })
-    offsetPortraitX = 0;
-
-    @property({ tooltip: 'Смещение по X в ландшафтной ориентации' })
-    offsetLandscapeX = 0;
-
-    @property({ tooltip: 'Плавное следование' })
-    smoothFollow = true;
-
-    @property({ slide: true, range: [1, 20, 1], tooltip: 'Скорость плавного следования' })
-    followSpeed = 5;
-
-    /* ─────────────── Приватные поля ─────────────── */
-
+    /* Приватные поля */
     private _currentOffsetX = 0;
     private _tempTargetPos = new Vec3();
     private _tempCamPos = new Vec3();
     private _initialY = 0;
     private _initialZ = 0;
+    private _hasOffsetTransitioned = false;
+    private _isLandscape = false;
+    private _shouldFollow = false;
+    private _screenCenterThreshold = 0.5; // Нормализованная позиция (0.5 = центр экрана)
+    private _leftEdgeWorldX = 0;
+    private _fixedCameraX = 0;
 
-    /* ─────────────── Жизненный цикл ─────────────── */
-
-    start () {
-        if (!this.target) { console.warn('CameraFollow: Target не назначен'); this.enabled = false; return; }
+    start() {
+        if (!this.target) { this.enabled = false; return; }
         if (!this.gameCamera) this.gameCamera = this.getComponent(Camera);
+        if (!this.characterJump) this.characterJump = this.target.getComponent(CharacterJump);
 
-        // Сохраняем начальные Y и Z, чтобы никогда их не менять
         this.node.getWorldPosition(this._tempCamPos);
         this._initialY = this._tempCamPos.y;
         this._initialZ = this._tempCamPos.z;
 
-        // Настраиваем офсет под текущую ориентацию
-        const isPortrait = view.getVisibleSize().height >= view.getVisibleSize().width;
-        this.applyOffsetForOrientation(isPortrait);
+        this._isLandscape = view.getVisibleSize().height < view.getVisibleSize().width;
+        this.applyOffsetForOrientation(!this._isLandscape);
 
-        // Ставим камеру сразу в нужную позицию
-        this.updateCameraPosition(1);
+        if (this.leftEdgeNode) {
+            this.calculateLeftEdgePosition();
+            this._fixedCameraX = this._leftEdgeWorldX;
+            this.updateCameraPosition(0);
+        }
     }
 
-    /** Меняем активный офсет при смене ориентации */
-    public applyOffsetForOrientation (isPortrait: boolean) {
-        this._currentOffsetX = isPortrait ? this.offsetPortraitX : this.offsetLandscapeX;
+    private calculateLeftEdgePosition() {
+        if (!this.leftEdgeNode || !this.gameCamera) return;
+        
+        const nodeWorldPos = new Vec3();
+        this.leftEdgeNode.getWorldPosition(nodeWorldPos);
+        const cameraHalfWidth = this.getCameraHalfWidth();
+        this._leftEdgeWorldX = nodeWorldPos.x + cameraHalfWidth;
     }
 
-    lateUpdate (dt: number) {
+    private getCameraHalfWidth(): number {
+        if (!this.gameCamera) return 0;
+        
+        if (this.gameCamera.orthoHeight) {
+            const aspect = view.getVisibleSize().width / view.getVisibleSize().height;
+            return this.gameCamera.orthoHeight * aspect;
+        } else {
+            const distance = Math.abs(this.node.worldPosition.z);
+            const fovRad = this.gameCamera.fov * Math.PI / 180;
+            const halfHeight = distance * Math.tan(fovRad / 2);
+            const aspect = view.getVisibleSize().width / view.getVisibleSize().height;
+            return halfHeight * aspect;
+        }
+    }
+
+    lateUpdate(dt: number) {
+        if (!this.target || !this.gameCamera) return;
+
+        const isPortraitNow = view.getVisibleSize().height >= view.getVisibleSize().width;
+        
+        if (this._isLandscape !== !isPortraitNow) {
+            this._isLandscape = !isPortraitNow;
+            this.applyOffsetForOrientation(isPortraitNow);
+            this._shouldFollow = false;
+            
+            if (this.leftEdgeNode) {
+                this.calculateLeftEdgePosition();
+                this._fixedCameraX = this._leftEdgeWorldX;
+            }
+        }
+
+        this.handleCameraMovement(dt);
+    }
+
+    private handleCameraMovement(dt: number) {
+        if (!this.target || !this.gameCamera) {
+            this.updateCameraPosition(dt);
+            return;
+        }
+
+        this.target.getWorldPosition(this._tempTargetPos);
+        const chickenScreenPos = this.gameCamera.worldToScreen(this._tempTargetPos);
+        const screenWidth = view.getVisibleSize().width;
+        const chickenScreenX = chickenScreenPos.x / screenWidth;
+
+        // Начинаем следовать, если курица прошла середину экрана
+        if (chickenScreenX >= this._screenCenterThreshold) {
+            this._shouldFollow = true;
+        }
+
+        // Проверяем видимость finalNode
+        if (this.finalNode && this._shouldFollow) {
+            const finalNodeWorldPos = new Vec3();
+            this.finalNode.getWorldPosition(finalNodeWorldPos);
+            const finalNodeScreenPos = this.gameCamera.worldToScreen(finalNodeWorldPos);
+            const finalNodeScreenX = finalNodeScreenPos.x / screenWidth;
+
+            // Останавливаем камеру, если finalNode в центре экрана или левее
+            if (finalNodeScreenX <= 0.5) {
+                this._shouldFollow = false;
+                this.node.getWorldPosition(this._tempCamPos);
+                this._fixedCameraX = this._tempCamPos.x;
+            }
+        }
+
+        if (this._shouldFollow) {
+            this.updateCameraPosition(dt);
+        } else {
+            this.node.getWorldPosition(this._tempCamPos);
+            this._tempCamPos.x = this._fixedCameraX;
+            this._tempCamPos.y = this._initialY;
+            this._tempCamPos.z = this._initialZ;
+            this.node.setWorldPosition(this._tempCamPos);
+        }
+    }
+
+    private updateCameraPosition(dt: number) {
         if (!this.target) return;
-        this.updateCameraPosition(dt);
-    }
 
-    /* ─────────────── Логика движения ─────────────── */
+        this.target.getWorldPosition(this._tempTargetPos);
+        
+        // Масштабируем offsetPortraitX относительно размера экрана
+        const screenWidth = view.getVisibleSize().width;
+        const cameraWidth = this.getCameraHalfWidth() * 2;
+        const scaledOffsetX = this._currentOffsetX * (cameraWidth / screenWidth);
+        let desiredX = this._tempTargetPos.x + scaledOffsetX;
 
-    private updateCameraPosition (dt: number) {
-        // 1. Текущая мировая позиция цели
-        this.target!.getWorldPosition(this._tempTargetPos);
+        if (this.leftEdgeNode) {
+            desiredX = Math.max(desiredX, this._leftEdgeWorldX);
+        }
 
-        // 2. Рассчитываем желаемый X
-        const desiredX = this._tempTargetPos.x + this._currentOffsetX;
-
-        // 3. Берём текущую позицию камеры
         this.node.getWorldPosition(this._tempCamPos);
 
-        // 4. Обновляем только X
         if (this.smoothFollow) {
             this._tempCamPos.x = this._tempCamPos.x + (desiredX - this._tempCamPos.x) * Math.min(1, dt * this.followSpeed);
         } else {
             this._tempCamPos.x = desiredX;
         }
 
-        // 5. Сохраняем фиксированные Y и Z
         this._tempCamPos.y = this._initialY;
         this._tempCamPos.z = this._initialZ;
-
-        // 6. Применяем позицию
         this.node.setWorldPosition(this._tempCamPos);
+        
+        if (this._shouldFollow) {
+            this._fixedCameraX = this._tempCamPos.x;
+        }
+    }
+
+    public applyOffsetForOrientation(isPortrait: boolean) {
+        if (isPortrait && this.characterJump && this.characterJump.hasJumped && !this._hasOffsetTransitioned) {
+            const offsetObj = { value: this._currentOffsetX };
+            tween(offsetObj)
+                .to(this.offsetTransitionDuration, { value: 0 }, { 
+                    easing: 'sineOut',
+                    onUpdate: (target: any) => {
+                        this._currentOffsetX = target.value;
+                    }
+                })
+                .call(() => {
+                    this._hasOffsetTransitioned = true;
+                })
+                .start();
+        } else if (!isPortrait || (isPortrait && (!this.characterJump || !this.characterJump.hasJumped))) {
+            this._currentOffsetX = isPortrait ? this.offsetPortraitX : 0;
+            this._hasOffsetTransitioned = false;
+        }
     }
 }

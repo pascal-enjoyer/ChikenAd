@@ -1,7 +1,7 @@
-import { _decorator, Component, Node, Vec3, tween, Animation, AudioClip, AudioSource, AnimationClip } from 'cc';
+import { _decorator, Component, Node, Vec3, tween, Animation, AudioClip, AudioSource } from 'cc';
+import { JumpPointSpriteActivator } from './JumpPointSpriteActivator'; // Убедитесь, что путь правильный
 const { ccclass, property } = _decorator;
 
-// Определяем имя события
 export const LAST_JUMP_COMPLETED_EVENT = 'last-jump-completed';
 
 @ccclass('CharacterJump')
@@ -51,6 +51,9 @@ export class CharacterJump extends Component {
     @property(AudioClip)
     jumpSound: AudioClip | null = null;
 
+    @property(AudioClip)
+    victorySound: AudioClip | null = null;
+
     @property({ type: Node, tooltip: 'Узел, с которого брать компонент Animation' })
     animationNode: Node | null = null;
 
@@ -58,22 +61,21 @@ export class CharacterJump extends Component {
     private animation: Animation | null = null;
     private audioSource: AudioSource | null = null;
     private isJumping: boolean = false;
-    public hasJumped: boolean = false; // Флаг первого прыжка
+    public hasJumped: boolean = false;
+
+    private isTriggered: boolean = false;
 
     start() {
-        // Получаем компонент Animation с указанного animationNode или текущего узла
         this.animation = this.animationNode ? this.animationNode.getComponent(Animation) : this.getComponent(Animation);
         this.audioSource = this.getComponent(AudioSource);
 
         if (this.animation) {
-            // Проверяем, существует ли анимация Bird
             const clips = this.animation.clips;
             const birdClipExists = clips.some(clip => clip && clip.name === this.jumpAnimationName);
             if (!birdClipExists) {
                 console.warn(`CharacterJump: Animation clip "${this.jumpAnimationName}" not found on node ${this.animationNode ? this.animationNode.name : this.node.name}`);
-                this.animation = null; // Отключаем анимацию, если клип не найден
+                this.animation = null;
             }
-            // Проверяем, существует ли анимация посадки (если используется)
             if (this.landAnimationName) {
                 const landClipExists = clips.some(clip => clip && clip.name === this.landAnimationName);
                 if (!landClipExists) {
@@ -95,6 +97,15 @@ export class CharacterJump extends Component {
         if (this.jumpPoints.length === 0) {
             console.warn('CharacterJump: No jump points defined.');
         }
+
+        // Отключаем все JumpPointSpriteActivator при старте
+        this.jumpPoints.forEach(point => {
+            const activator = point.getComponent(JumpPointSpriteActivator);
+            if (activator) {
+                activator.enabled = false;
+                console.log(`CharacterJump: Disabled JumpPointSpriteActivator on ${point.name} at start`);
+            }
+        });
     }
 
     jumpToNextPoint() {
@@ -102,24 +113,48 @@ export class CharacterJump extends Component {
 
         this.isJumping = true;
         const targetNode = this.jumpPoints[this.currentTargetPointIndex];
+
+        // Включаем JumpPointSpriteActivator целевой точки перед прыжком
+        const targetActivator = targetNode.getComponent(JumpPointSpriteActivator);
+        if (targetActivator) {
+            console.log(`CharacterJump: Enabling JumpPointSpriteActivator on ${targetNode.name}`);
+            targetActivator.enabled = true;
+        } else {
+            console.warn(`CharacterJump: No JumpPointSpriteActivator found on ${targetNode.name}`);
+        }
+
         this.executeJump(targetNode.position, () => {
             const nextIndex = this.currentTargetPointIndex + 1;
             const isLast = nextIndex === this.jumpPoints.length;
 
-            // Устанавливаем флаг после первого прыжка
             if (!this.hasJumped) {
                 this.setHasJumped();
             }
 
             if (isLast) {
-                // Отправляем событие последнего прыжка
                 console.log('CharacterJump: Emitting LAST_JUMP_COMPLETED_EVENT');
                 this.node.emit(LAST_JUMP_COMPLETED_EVENT);
-                // Активируем финальный экран с задержкой
-                this.scheduleOnce(this.activateFinishScreen, this.finishScreenDelay);
+                // Проверяем, не активен ли уже экран победы
+                if (!(this.finishScreenNode?.active || this.finishScreenLand?.active)) {
+                    console.log('CharacterJump: Activating finish screen');
+                    if (this.audioSource && this.victorySound) {
+                        this.audioSource.playOneShot(this.victorySound);
+                    }
+                    this.scheduleOnce(() => {
+                        if (this.finishScreenNode) {
+                            this.finishScreenNode.active = true;
+                        }
+                        if (this.finishScreenLand) {
+                            this.finishScreenLand.active = true;
+                        }
+                    }, this.finishScreenDelay);
+                } else {
+                    console.log('CharacterJump: Finish screen already active, skipping activation and sound');
+                }
             } else {
                 this.currentTargetPointIndex = nextIndex;
             }
+            this.isJumping = false;
         });
     }
 
@@ -128,29 +163,74 @@ export class CharacterJump extends Component {
 
         this.isJumping = true;
         const targetNode = this.jumpPoints[index];
+
+        // Включаем JumpPointSpriteActivator целевой точки перед прыжком
+        const targetActivator = targetNode.getComponent(JumpPointSpriteActivator);
+        if (targetActivator) {
+            console.log(`CharacterJump: Enabling JumpPointSpriteActivator on ${targetNode.name}`);
+            targetActivator.enabled = true;
+        } else {
+            console.warn(`CharacterJump: No JumpPointSpriteActivator found on ${targetNode.name}`);
+        }
+
         this.executeJump(targetNode.position, () => {
             this.currentTargetPointIndex = index;
             const isLast = index === this.jumpPoints.length - 1;
 
-            // Устанавливаем флаг после первого прыжка
             if (!this.hasJumped) {
                 this.setHasJumped();
             }
 
             if (isLast) {
-                // Отправляем событие последнего прыжка
                 console.log('CharacterJump: Emitting LAST_JUMP_COMPLETED_EVENT');
                 this.node.emit(LAST_JUMP_COMPLETED_EVENT);
-                // Активируем финальный экран с задержкой
-                this.scheduleOnce(this.activateFinishScreen, this.finishScreenDelay);
+                
+                // Проверяем, не активен ли уже экран победы
+                this.triggerVictoryScreen();
             }
+            this.isJumping = false;
         });
     }
 
-    // Метод для установки флага первого прыжка
     public setHasJumped() {
         this.hasJumped = true;
     }
+
+public triggerVictoryScreen() {
+    if (!this.hasJumped) {
+        console.warn('CharacterJump: Cannot trigger victory screen, no jumps performed yet.');
+        return;
+    }
+    
+    // Проверяем, не был ли уже вызван экран победы
+    if (this.isTriggered) {
+        console.log('CharacterJump: Victory screen already triggered, skipping');
+        return;
+    }
+    
+    console.log('CharacterJump: Triggering victory screen manually');
+    
+    // Проверяем, не активен ли уже экран победы
+    if (!(this.finishScreenNode?.active || this.finishScreenLand?.active)) {
+        console.log('CharacterJump: Activating finish screen');
+        this.isTriggered = true; // Устанавливаем флаг перед активацией
+        
+        if (this.audioSource && this.victorySound) {
+            this.audioSource.playOneShot(this.victorySound);
+        }
+        
+        this.scheduleOnce(() => {
+            if (this.finishScreenNode) {
+                this.finishScreenNode.active = true;
+            }
+            if (this.finishScreenLand) {
+                this.finishScreenLand.active = true;
+            }
+        }, this.finishScreenDelay);
+    } else {
+        console.log('CharacterJump: Finish screen already active, skipping activation and sound');
+    }
+}
 
     private executeJump(targetPos: Vec3, onComplete: () => void) {
         const startPos = this.node.position.clone();
@@ -161,7 +241,6 @@ export class CharacterJump extends Component {
             (startPos.z + initialLandPos.z) / 2
         );
 
-        // Воспроизводим анимацию Bird в начале прыжка
         if (this.animation && this.jumpAnimationName) {
             console.log(`CharacterJump: Playing animation "${this.jumpAnimationName}" at jump start`);
             this.animation.play(this.jumpAnimationName);
@@ -178,7 +257,6 @@ export class CharacterJump extends Component {
                 tween(this.node)
                     .to(this.landDropDuration, { position: targetPos })
                     .call(() => {
-                        this.isJumping = false;
                         this.performLandingEffect();
                         onComplete();
                     })
@@ -191,7 +269,6 @@ export class CharacterJump extends Component {
         const currentPos = this.node.position.clone();
         const sinkPos = new Vec3(currentPos.x, currentPos.y - this.landingSinkAmount, currentPos.z);
 
-        // Воспроизводим анимацию посадки, если указана
         if (this.animation && this.landAnimationName) {
             console.log(`CharacterJump: Playing landing animation "${this.landAnimationName}"`);
             this.animation.play(this.landAnimationName);
@@ -208,8 +285,7 @@ export class CharacterJump extends Component {
     }
 
     private activateFinishScreen() {
-        console.log('CharacterJump: Activating finish screen');
-        if (this.finishScreenNode) this.finishScreenNode.active = true;
-        if (this.finishScreenLand) this.finishScreenLand.active = true;
+        // Метод оставлен для обратной совместимости, но не используется
+        console.log('CharacterJump: activateFinishScreen called (deprecated)');
     }
 }
