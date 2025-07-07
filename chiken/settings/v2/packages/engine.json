@@ -119,10 +119,10 @@
         "_value": true
       },
       "marionette": {
-        "_value": true
+        "_value": false
       },
       "procedural-animation": {
-        "_value": true
+        "_value": false
       },
       "custom-pipeline-post-process": {
         "_value": false
@@ -152,10 +152,8 @@
       "gfx-webgl2",
       "intersection-2d",
       "legacy-pipeline",
-      "marionette",
       "particle-2d",
       "physics-2d-box2d",
-      "procedural-animation",
       "spine",
       "tiled-map",
       "tween",

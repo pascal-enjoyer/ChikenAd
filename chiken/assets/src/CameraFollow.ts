@@ -10,7 +10,7 @@ export class CameraFollow extends Component {
     @property({ type: Node }) leftEdgeNode: Node | null = null;
     @property({ type: Camera }) gameCamera: Camera | null = null;
     @property({ type: CharacterJump }) characterJump: CharacterJump | null = null;
-    @property offsetPortraitX = 0; // Смещение в мировых координатах
+    @property offsetPortraitX = 0;
     @property smoothFollow = true;
     @property followSpeed = 5;
     @property offsetTransitionDuration = 0.5;
@@ -24,7 +24,7 @@ export class CameraFollow extends Component {
     private _hasOffsetTransitioned = false;
     private _isLandscape = false;
     private _shouldFollow = false;
-    private _screenCenterThreshold = 0.5; // Нормализованная позиция (0.5 = центр экрана)
+    private _screenCenterThreshold = 0.5;
     private _leftEdgeWorldX = 0;
     private _fixedCameraX = 0;
 
@@ -49,16 +49,16 @@ export class CameraFollow extends Component {
 
     private calculateLeftEdgePosition() {
         if (!this.leftEdgeNode || !this.gameCamera) return;
-        
+
         const nodeWorldPos = new Vec3();
         this.leftEdgeNode.getWorldPosition(nodeWorldPos);
         const cameraHalfWidth = this.getCameraHalfWidth();
-        this._leftEdgeWorldX = nodeWorldPos.x + cameraHalfWidth;
+        this._leftEdgeWorldX = nodeWorldPos.x + cameraHalfWidth; // Левый край камеры совпадает с leftEdgeNode
     }
 
     private getCameraHalfWidth(): number {
         if (!this.gameCamera) return 0;
-        
+
         if (this.gameCamera.orthoHeight) {
             const aspect = view.getVisibleSize().width / view.getVisibleSize().height;
             return this.gameCamera.orthoHeight * aspect;
@@ -74,17 +74,18 @@ export class CameraFollow extends Component {
     lateUpdate(dt: number) {
         if (!this.target || !this.gameCamera) return;
 
+        // Проверяем ориентацию в каждом кадре
         const isPortraitNow = view.getVisibleSize().height >= view.getVisibleSize().width;
-        
         if (this._isLandscape !== !isPortraitNow) {
             this._isLandscape = !isPortraitNow;
             this.applyOffsetForOrientation(isPortraitNow);
             this._shouldFollow = false;
-            
-            if (this.leftEdgeNode) {
-                this.calculateLeftEdgePosition();
-                this._fixedCameraX = this._leftEdgeWorldX;
-            }
+        }
+
+        // Пересчитываем позицию leftEdgeNode в каждом кадре
+        if (this.leftEdgeNode) {
+            this.calculateLeftEdgePosition();
+            this._fixedCameraX = this._leftEdgeWorldX;
         }
 
         this.handleCameraMovement(dt);
@@ -101,19 +102,16 @@ export class CameraFollow extends Component {
         const screenWidth = view.getVisibleSize().width;
         const chickenScreenX = chickenScreenPos.x / screenWidth;
 
-        // Начинаем следовать, если курица прошла середину экрана
         if (chickenScreenX >= this._screenCenterThreshold) {
             this._shouldFollow = true;
         }
 
-        // Проверяем видимость finalNode
         if (this.finalNode && this._shouldFollow) {
             const finalNodeWorldPos = new Vec3();
             this.finalNode.getWorldPosition(finalNodeWorldPos);
             const finalNodeScreenPos = this.gameCamera.worldToScreen(finalNodeWorldPos);
             const finalNodeScreenX = finalNodeScreenPos.x / screenWidth;
 
-            // Останавливаем камеру, если finalNode в центре экрана или левее
             if (finalNodeScreenX <= 0.5) {
                 this._shouldFollow = false;
                 this.node.getWorldPosition(this._tempCamPos);
@@ -137,12 +135,12 @@ export class CameraFollow extends Component {
 
         this.target.getWorldPosition(this._tempTargetPos);
         
-        // Масштабируем offsetPortraitX относительно размера экрана
         const screenWidth = view.getVisibleSize().width;
         const cameraWidth = this.getCameraHalfWidth() * 2;
         const scaledOffsetX = this._currentOffsetX * (cameraWidth / screenWidth);
         let desiredX = this._tempTargetPos.x + scaledOffsetX;
 
+        // Ограничиваем позицию камеры, чтобы левый край не уходил левее leftEdgeNode
         if (this.leftEdgeNode) {
             desiredX = Math.max(desiredX, this._leftEdgeWorldX);
         }
