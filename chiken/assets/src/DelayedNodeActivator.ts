@@ -1,4 +1,4 @@
-import { _decorator, Component, Node } from 'cc';
+import { _decorator, Component, Node, Animation } from 'cc';
 const { ccclass, property } = _decorator;
 
 @ccclass('DelayedNodeActivator')
@@ -9,6 +9,9 @@ export class DelayedNodeActivator extends Component {
 
     @property
     private delaySeconds: number = 2; // Задержка в секундах перед активацией
+
+    @property
+    private playAnimationOnEnable: boolean = false; // Флаг для проигрывания анимации при активации
 
     private _isScheduled: boolean = false; // Флаг, чтобы избежать повторного планирования
 
@@ -36,6 +39,17 @@ export class DelayedNodeActivator extends Component {
     private activateTargetNode() {
         if (this.targetNode) {
             this.targetNode.active = true;
+            
+            // Если включен флаг playAnimationOnEnable, ищем компонент Animation и проигрываем анимацию
+            if (this.playAnimationOnEnable) {
+                const animation = this.targetNode.getComponent(Animation);
+                if (animation) {
+                    animation.play();
+                } else {
+                    console.warn(`Node '${this.targetNode.name}' does not have an Animation component.`);
+                }
+            }
+            
             // console.log(`Node '${this.targetNode.name}' activated after ${this.delaySeconds} seconds.`);
         }
         this._isScheduled = false; // Сбрасываем флаг после выполнения

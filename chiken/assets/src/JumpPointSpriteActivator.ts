@@ -99,10 +99,10 @@ export class JumpPointSpriteActivator extends Component {
 
         if (!JumpPointSpriteActivator.hasReset) {
             if (this.displayLabel) {
-                this.displayLabel.string = '0.00 €';
+                this.displayLabel.string = '0.00 EUR';
             }
             if (this.displayLabelLand) {
-                this.displayLabelLand.string = '0.00 €';
+                this.displayLabelLand.string = '0.00 EUR';
             }
             JumpPointSpriteActivator.hasReset = true;
         }
@@ -146,15 +146,15 @@ export class JumpPointSpriteActivator extends Component {
     private animateValue() {
         if (this.displayLabel) {
             tween(this.displayLabel).stop();
-            let currentValue = parseFloat(this.displayLabel.string.replace(' €', '')) || 0;
+            let currentValue = parseFloat(this.displayLabel.string.replace(' EUR', '')) || 0;
             const animObject = { value: currentValue };
             tween(animObject)
                 .to(this.animationDuration, { value: this.targetValue }, {
                     onUpdate: (target: { value: number }) => {
-                        this.displayLabel!.string = `${this.formatNumber(target.value)} €`;
+                        this.displayLabel!.string = `${this.formatNumber(target.value)} EUR`;
                     },
                     onComplete: () => {
-                        this.displayLabel!.string = `${this.formatNumber(this.targetValue)} €`;
+                        this.displayLabel!.string = `${this.formatNumber(this.targetValue)} EUR`;
                     }
                 })
                 .start();
@@ -162,15 +162,15 @@ export class JumpPointSpriteActivator extends Component {
 
         if (this.displayLabelLand) {
             tween(this.displayLabelLand).stop();
-            let currentValueLand = parseFloat(this.displayLabelLand.string.replace(' €', '')) || 0;
+            let currentValueLand = parseFloat(this.displayLabelLand.string.replace(' EUR', '')) || 0;
             const animObjectLand = { value: currentValueLand };
             tween(animObjectLand)
                 .to(this.animationDuration, { value: this.targetValue }, {
                     onUpdate: (target: { value: number }) => {
-                        this.displayLabelLand!.string = `${this.formatNumber(target.value)} €`;
+                        this.displayLabelLand!.string = `${this.formatNumber(target.value)} EUR`;
                     },
                     onComplete: () => {
-                        this.displayLabelLand!.string = `${this.formatNumber(this.targetValue)} €`;
+                        this.displayLabelLand!.string = `${this.formatNumber(this.targetValue)} EUR`;
                     }
                 })
                 .start();
