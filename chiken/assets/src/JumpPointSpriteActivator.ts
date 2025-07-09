@@ -1,5 +1,6 @@
-import { _decorator, Component, Node, Label, tween, Vec3, AudioClip, AudioSource } from 'cc';
-import { AnimatedLabelNumber } from './AnimatedLabelNumber';
+import { _decorator, Component, Node, Label, RichText, tween, Vec3, AudioClip, AudioSource } from 'cc';
+import { AnimatedRichTextNumber } from './AnimatedLabelNumber';
+import { NumberSplitter } from './NumberSplitter';
 const { ccclass, property } = _decorator;
 
 @ccclass('JumpPointSpriteActivator')
@@ -19,29 +20,50 @@ export class JumpPointSpriteActivator extends Component {
     @property(Label)
     displayLabelLand: Label | null = null;
 
-    @property({ type: AnimatedLabelNumber, tooltip: 'AnimatedLabelNumber for land packshot money' })
-    landPackshotMoney: AnimatedLabelNumber | null = null;
+    @property({ type: AnimatedRichTextNumber, tooltip: 'AnimatedRichTextNumber for land packshot money' })
+    landPackshotMoney: AnimatedRichTextNumber | null = null;
 
-    @property({ type: AnimatedLabelNumber, tooltip: 'AnimatedLabelNumber for port packshot money' })
-    portPackshotMoney: AnimatedLabelNumber | null = null;
+    @property({ type: AnimatedRichTextNumber, tooltip: 'AnimatedRichTextNumber for port packshot money' })
+    portPackshotMoney: AnimatedRichTextNumber | null = null;
 
-    @property({ type: Label})
+    @property({ type: Label })
     landNotif: Label | null = null;
 
-    @property({ type: Label})
+    @property({ type: Label })
     portNotif: Label | null = null;
 
-    @property({ type: Label})
+    @property({ type: Label })
     landNotif2: Label | null = null;
 
-    @property({ type: Label})
+    @property({ type: Label })
     portNotif2: Label | null = null;
+
+    @property({ type: RichText, tooltip: 'RichText for win1 multiplier (portrait)' })
+    win1: RichText | null = null;
+
+    @property({ type: RichText, tooltip: 'RichText for win2 targetValue (portrait)' })
+    win2: RichText | null = null;
+
+    @property({ type: RichText, tooltip: 'RichText for win1 multiplier (landscape)' })
+    win1land: RichText | null = null;
+
+    @property({ type: RichText, tooltip: 'RichText for win2 targetValue (landscape)' })
+    win2land: RichText | null = null;
+
+    @property({ type: NumberSplitter, tooltip: 'NumberSplitter for land notifications' })
+    landNumberSplitter: NumberSplitter | null = null;
+
+    @property({ type: NumberSplitter, tooltip: 'NumberSplitter for port notifications' })
+    portNumberSplitter: NumberSplitter | null = null;
 
     @property
     targetValue: number = 100;
 
     @property
     startValue: number = 4.12;
+
+    @property
+    multiplier: number = 1.0;
 
     @property
     animationDuration: number = 0.5;
@@ -86,23 +108,34 @@ export class JumpPointSpriteActivator extends Component {
         this.audioSource = this.getComponent(AudioSource);
         this.spriteContainerNode.active = false;
         this._isSpriteActive = false;
-        
+
         // Для landNotif2 и portNotif2 используем сумму targetValue + startValue
         const totalValue = this.targetValue + this.startValue;
-        // Для landNotif и portNotif оставляем targetValue
-        this.landNotif.string = this.targetValue.toString();
-        
-        this.landNotif2.string = totalValue.toString();
-        this.portNotif.string = this.targetValue.toString();
-        
-        this.portNotif2.string = totalValue.toString();
+        // Для landNotif, portNotif, win2, win2land используем targetValue
+        if (this.landNotif) this.landNotif.string = `${this.targetValue.toFixed(2)} EUR`;
+        if (this.landNotif2) this.landNotif2.string = `${totalValue.toFixed(2)} EUR`;
+        if (this.portNotif) this.portNotif.string = `${this.targetValue.toFixed(2)} EUR`;
+        if (this.portNotif2) this.portNotif2.string = `${totalValue.toFixed(2)} EUR`;
+        if (this.win2) this.win2.string = `${this.targetValue.toFixed(2)} EUR`;
+        if (this.win2land) this.win2land.string = `${this.targetValue.toFixed(2)} EUR`;
+        // Для win1 и win1land используем multiplier
+        if (this.win1) this.win1.string = `${this.multiplier.toFixed(2)}`;
+        if (this.win1land) this.win1land.string = `${this.multiplier.toFixed(2)}`;
+
+        // Pass targetValue to NumberSplitter components
+        if (this.landNumberSplitter) {
+            this.landNumberSplitter.setNumbers(this.targetValue);
+        }
+        if (this.portNumberSplitter) {
+            this.portNumberSplitter.setNumbers(this.targetValue);
+        }
 
         if (!JumpPointSpriteActivator.hasReset) {
             if (this.displayLabel) {
-                this.displayLabel.string = '0.00 EUR';
+                this.displayLabel.string = '0.00 €';
             }
             if (this.displayLabelLand) {
-                this.displayLabelLand.string = '0.00 EUR';
+                this.displayLabelLand.string = '0.00 €';
             }
             JumpPointSpriteActivator.hasReset = true;
         }
@@ -117,6 +150,7 @@ export class JumpPointSpriteActivator extends Component {
             this.portPackshotMoney.setValue(this.startValue);
         }
     }
+
     private formatNumber(value: number): string {
         return value.toFixed(2);
     }
@@ -146,15 +180,15 @@ export class JumpPointSpriteActivator extends Component {
     private animateValue() {
         if (this.displayLabel) {
             tween(this.displayLabel).stop();
-            let currentValue = parseFloat(this.displayLabel.string.replace(' EUR', '')) || 0;
+            let currentValue = parseFloat(this.displayLabel.string.replace(' €', '')) || 0;
             const animObject = { value: currentValue };
             tween(animObject)
                 .to(this.animationDuration, { value: this.targetValue }, {
                     onUpdate: (target: { value: number }) => {
-                        this.displayLabel!.string = `${this.formatNumber(target.value)} EUR`;
+                        this.displayLabel!.string = `${this.formatNumber(target.value)} €`;
                     },
                     onComplete: () => {
-                        this.displayLabel!.string = `${this.formatNumber(this.targetValue)} EUR`;
+                        this.displayLabel!.string = `${this.formatNumber(this.targetValue)} €`;
                     }
                 })
                 .start();
@@ -162,21 +196,20 @@ export class JumpPointSpriteActivator extends Component {
 
         if (this.displayLabelLand) {
             tween(this.displayLabelLand).stop();
-            let currentValueLand = parseFloat(this.displayLabelLand.string.replace(' EUR', '')) || 0;
+            let currentValueLand = parseFloat(this.displayLabelLand.string.replace(' €', '')) || 0;
             const animObjectLand = { value: currentValueLand };
             tween(animObjectLand)
                 .to(this.animationDuration, { value: this.targetValue }, {
                     onUpdate: (target: { value: number }) => {
-                        this.displayLabelLand!.string = `${this.formatNumber(target.value)} EUR`;
+                        this.displayLabelLand!.string = `${this.formatNumber(target.value)} €`;
                     },
                     onComplete: () => {
-                        this.displayLabelLand!.string = `${this.formatNumber(this.targetValue)} EUR`;
+                        this.displayLabelLand!.string = `${this.formatNumber(this.targetValue)} €`;
                     }
                 })
                 .start();
         }
     }
-
 
     private animateSpriteDrop() {
         if (!this.spriteToDropNode) return;
