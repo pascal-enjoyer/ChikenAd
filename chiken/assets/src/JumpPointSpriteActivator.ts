@@ -1,4 +1,4 @@
-import { _decorator, Component, Node, Label, RichText, tween, Vec3, AudioClip, AudioSource } from 'cc';
+import { _decorator, Component, Node, Label, tween, Vec3, AnimationComponent } from 'cc';
 import { AnimatedRichTextNumber } from './AnimatedLabelNumber';
 import { NumberSplitter } from './NumberSplitter';
 const { ccclass, property } = _decorator;
@@ -38,17 +38,14 @@ export class JumpPointSpriteActivator extends Component {
     @property({ type: Label })
     portNotif2: Label | null = null;
 
-    @property({ type: RichText, tooltip: 'RichText for win1 multiplier (portrait)' })
-    win1: RichText | null = null;
+    @property({ type: AnimationComponent, tooltip: 'Animation component for win animation' })
+    winAnimation: AnimationComponent | null = null;
 
-    @property({ type: RichText, tooltip: 'RichText for win2 targetValue (portrait)' })
-    win2: RichText | null = null;
+    @property({ type: AnimationComponent, tooltip: 'Animation component for winLand animation' })
+    winLandAnimation: AnimationComponent | null = null;
 
-    @property({ type: RichText, tooltip: 'RichText for win1 multiplier (landscape)' })
-    win1land: RichText | null = null;
-
-    @property({ type: RichText, tooltip: 'RichText for win2 targetValue (landscape)' })
-    win2land: RichText | null = null;
+    @property
+    clipNumber: number = 0;
 
     @property({ type: NumberSplitter, tooltip: 'NumberSplitter for land notifications' })
     landNumberSplitter: NumberSplitter | null = null;
@@ -63,22 +60,13 @@ export class JumpPointSpriteActivator extends Component {
     startValue: number = 4.12;
 
     @property
-    multiplier: number = 1.0;
-
-    @property
     animationDuration: number = 0.5;
-
-    @property(Node)
-    spriteToDropNode: Node | null = null;
 
     @property
     dropTargetYOffset: number = -50;
 
     @property
     dropAnimationDuration: number = 0.3;
-
-    @property(AudioClip)
-    activationSound: AudioClip | null = null;
 
     @property
     soundDelay: number = 0.1;
@@ -91,7 +79,6 @@ export class JumpPointSpriteActivator extends Component {
 
     private _initialDropNodeY: number = 0;
     private _isSpriteActive: boolean = false;
-    private audioSource: AudioSource | null = null;
     private static hasReset: boolean = false;
 
     start() {
@@ -101,26 +88,16 @@ export class JumpPointSpriteActivator extends Component {
             return;
         }
 
-        if (this.spriteToDropNode) {
-            this._initialDropNodeY = this.spriteToDropNode.position.y;
-        }
-
-        this.audioSource = this.getComponent(AudioSource);
         this.spriteContainerNode.active = false;
         this._isSpriteActive = false;
 
         // Для landNotif2 и portNotif2 используем сумму targetValue + startValue
         const totalValue = this.targetValue + this.startValue;
-        // Для landNotif, portNotif, win2, win2land используем targetValue
+        // Для landNotif, portNotif используем targetValue
         if (this.landNotif) this.landNotif.string = `${this.targetValue.toFixed(2)} EUR`;
         if (this.landNotif2) this.landNotif2.string = `${totalValue.toFixed(2)} EUR`;
         if (this.portNotif) this.portNotif.string = `${this.targetValue.toFixed(2)} EUR`;
         if (this.portNotif2) this.portNotif2.string = `${totalValue.toFixed(2)} EUR`;
-        if (this.win2) this.win2.string = `${this.targetValue.toFixed(2)} EUR`;
-        if (this.win2land) this.win2land.string = `${this.targetValue.toFixed(2)} EUR`;
-        // Для win1 и win1land используем multiplier
-        if (this.win1) this.win1.string = `${this.multiplier.toFixed(2)}`;
-        if (this.win1land) this.win1land.string = `${this.multiplier.toFixed(2)}`;
 
         // Pass targetValue to NumberSplitter components
         if (this.landNumberSplitter) {
@@ -149,6 +126,16 @@ export class JumpPointSpriteActivator extends Component {
             this.portPackshotMoney.initialValue = totalValue;
             this.portPackshotMoney.setValue(this.startValue);
         }
+
+        // Play animations if components exist
+        if (this.winAnimation && this.winAnimation.clips[this.clipNumber]) {
+            this.winAnimation.play(this.winAnimation.clips[this.clipNumber].name);
+            this.winAnimation.pause();
+        }
+        if (this.winLandAnimation && this.winLandAnimation.clips[this.clipNumber]) {
+            this.winLandAnimation.play(this.winLandAnimation.clips[this.clipNumber].name);
+            this.winLandAnimation.pause();
+        }
     }
 
     private formatNumber(value: number): string {
@@ -173,7 +160,6 @@ export class JumpPointSpriteActivator extends Component {
             this.spriteContainerNode.active = true;
             this._isSpriteActive = true;
             this.animateValue();
-            this.animateSpriteDrop();
         }
     }
 
@@ -209,18 +195,5 @@ export class JumpPointSpriteActivator extends Component {
                 })
                 .start();
         }
-    }
-
-    private animateSpriteDrop() {
-        if (!this.spriteToDropNode) return;
-
-        tween(this.spriteToDropNode).stop();
-
-        const currentPos = this.spriteToDropNode.position.clone();
-        const targetPos = new Vec3(currentPos.x, this._initialDropNodeY + this.dropTargetYOffset, currentPos.z);
-
-        tween(this.spriteToDropNode)
-            .to(this.dropAnimationDuration, { position: targetPos })
-            .start();
     }
 }

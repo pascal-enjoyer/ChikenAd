@@ -1,13 +1,13 @@
-import { _decorator, Component, Label, tween, CCInteger, Tween } from 'cc';
+import { _decorator, Component, RichText, tween, CCInteger, CCFloat, Tween   } from 'cc';
 const { ccclass, property } = _decorator;
 
-@ccclass('AnimatedLabelNumber')
-export class AnimatedLabelNumber extends Component {
-    @property({ type: Label })
-    private targetLabel: Label | null = null;
+@ccclass('AnimatedRichTextNumber')
+export class AnimatedRichTextNumber extends Component {
+    @property({ type: RichText })
+    private targetRichText: RichText | null = null;
 
     @property({ type: CCInteger, visible: true, serializable: true })
-    private _initialValue: number = 0; // Свойство для инспектора
+    private _initialValue: number = 0;
 
     @property
     private animationDuration: number = 0.5;
@@ -18,48 +18,55 @@ export class AnimatedLabelNumber extends Component {
     @property({ tooltip: 'Добавлять " EUR" после числа' })
     private addEurSuffix: boolean = true;
 
+    @property({ type: CCFloat, tooltip: 'Размер шрифта дробной части (в пикселях)', visible: function(this: AnimatedRichTextNumber) { return !this.roundToInt; } })
+    private decimalFontSize: number = 40;
+
     private _currentDisplayedValue: number = 0;
     private _activeTween: Tween<any> | null = null;
 
     private formatValue(value: number): string {
-        let formattedValue = this.roundToInt
-            ? Math.floor(value).toString()
-            : value.toFixed(2);
-        
-        if (this.addEurSuffix) {
-            formattedValue += ' EUR';
+        if (this.roundToInt) {
+            let formattedValue = Math.floor(value).toString();
+            if (this.addEurSuffix) {
+                formattedValue += ' EUR';
+            }
+            return formattedValue;
+        } else {
+            // Split the number into integer and decimal parts
+            const [integerPart, decimalPart] = value.toFixed(2).split('.');
+            // Format with rich text: integer part uses default size, decimal part, comma, and EUR use specified size
+            let formattedValue = `${integerPart}<size=${this.decimalFontSize}>,<color=#FFFFFF>${decimalPart}${this.addEurSuffix ? ' EUR' : ''}</color></size>`;
+            return formattedValue;
         }
-        
-        return formattedValue;
     }
 
     onLoad() {
-        if (!this.targetLabel) {
-            this.targetLabel = this.getComponent(Label);
+        if (!this.targetRichText) {
+            this.targetRichText = this.getComponent(RichText);
         }
 
-        if (!this.targetLabel) {
-            console.warn(`AnimatedLabelNumber on ${this.node.name}: No targetLabel found, disabling component`);
+        if (!this.targetRichText) {
+            console.warn(`AnimatedRichTextNumber on ${this.node.name}: No targetRichText found, disabling component`);
             this.enabled = false;
             return;
         }
 
-        console.log(`AnimatedLabelNumber on ${this.node.name}: onLoad, initialValue=${this.initialValue}`);
+        console.log(`AnimatedRichTextNumber on ${this.node.name}: onLoad, initialValue=${this.initialValue}`);
         this._currentDisplayedValue = 0;
-        this.targetLabel.string = this.formatValue(this._currentDisplayedValue);
+        this.targetRichText.string = this.formatValue(this._currentDisplayedValue);
     }
 
     onEnable() {
-        console.log(`AnimatedLabelNumber on ${this.node.name}: onEnable, animating to initialValue=${this.initialValue}`);
+        console.log(`AnimatedRichTextNumber on ${this.node.name}: onEnable, animating to initialValue=${this.initialValue}`);
         this._currentDisplayedValue = 0;
-        this.targetLabel!.string = this.formatValue(this._currentDisplayedValue);
+        this.targetRichText!.string = this.formatValue(this._currentDisplayedValue);
 
         this.animateTo(this.initialValue, this.animationDuration);
     }
 
     public animateTo(targetValue: number, duration?: number) {
-        if (!this.targetLabel) {
-            console.warn(`AnimatedLabelNumber on ${this.node.name}: No targetLabel for animation`);
+        if (!this.targetRichText) {
+            console.warn(`AnimatedRichTextNumber on ${this.node.name}: No targetRichText for animation`);
             return;
         }
 
@@ -68,31 +75,31 @@ export class AnimatedLabelNumber extends Component {
         }
 
         let startValue = this._currentDisplayedValue;
-        console.log(`AnimatedLabelNumber on ${this.node.name}: Animating from ${startValue} to ${targetValue}`);
+        console.log(`AnimatedRichTextNumber on ${this.node.name}: Animating from ${startValue} to ${targetValue}`);
 
         const animProxy = { value: startValue };
         this._activeTween = tween(animProxy)
             .to(duration !== undefined ? duration : this.animationDuration, { value: targetValue }, {
                 onUpdate: (target: { value: number }) => {
-                    if (this.targetLabel) {
-                        this.targetLabel.string = this.formatValue(target.value);
+                    if (this.targetRichText) {
+                        this.targetRichText.string = this.formatValue(target.value);
                     }
                 },
                 onComplete: () => {
-                    if (this.targetLabel) {
-                        this.targetLabel.string = this.formatValue(targetValue);
+                    if (this.targetRichText) {
+                        this.targetRichText.string = this.formatValue(targetValue);
                     }
                     this._currentDisplayedValue = targetValue;
                     this._activeTween = null;
-                    console.log(`AnimatedLabelNumber on ${this.node.name}: Animation completed to ${targetValue}`);
+                    console.log(`AnimatedRichTextNumber on ${this.node.name}: Animation completed to ${targetValue}`);
                 }
             })
             .start();
     }
 
     public setValue(value: number) {
-        if (!this.targetLabel) {
-            console.warn(`AnimatedLabelNumber on ${this.node.name}: No targetLabel for setValue`);
+        if (!this.targetRichText) {
+            console.warn(`AnimatedRichTextNumber on ${this.node.name}: No targetRichText for setValue`);
             return;
         }
         if (this._activeTween) {
@@ -100,14 +107,13 @@ export class AnimatedLabelNumber extends Component {
             this._activeTween = null;
         }
         this._currentDisplayedValue = value;
-        this.targetLabel.string = this.formatValue(value);
-        console.log(`AnimatedLabelNumber on ${this.node.name}: setValue called with ${value}`);
+        this.targetRichText.string = this.formatValue(value);
+        console.log(`AnimatedRichTextNumber on ${this.node.name}: setValue called with ${value}`);
     }
 
-    // Геттер и сеттер для совместимости с JumpPointSpriteActivator
     public set initialValue(value: number) {
         this._initialValue = value;
-        console.log(`AnimatedLabelNumber on ${this.node.name}: initialValue set to ${value}`);
+        console.log(`AnimatedRichTextNumber on ${this.node.name}: initialValue set to ${value}`);
     }
 
     public get initialValue(): number {

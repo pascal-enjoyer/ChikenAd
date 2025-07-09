@@ -150,12 +150,12 @@
     "__prefab": {
       "__id__": 7
     },
-    "_alignFlags": 40,
+    "_alignFlags": 45,
     "_target": null,
     "_left": 0,
     "_right": 0,
-    "_top": 0,
-    "_bottom": 0.75,
+    "_top": 0.4964508666009643,
+    "_bottom": 0.41190991184214937,
     "_horizontalCenter": 0,
     "_verticalCenter": 0,
     "_isAbsLeft": false,
