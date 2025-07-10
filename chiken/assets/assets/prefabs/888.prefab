@@ -150,7 +150,7 @@
     "__prefab": {
       "__id__": 7
     },
-    "_alignFlags": 45,
+    "_alignFlags": 40,
     "_target": null,
     "_left": 0,
     "_right": 0,
@@ -189,12 +189,12 @@
     "playOnLoad": true,
     "_clips": [
       {
-        "__uuid__": "4abc1129-697b-4c2e-9356-ece5b875e198",
+        "__uuid__": "b6868574-e309-4001-91d6-60c8fb5f6eb8",
         "__expectedType__": "cc.AnimationClip"
       }
     ],
     "_defaultClip": {
-      "__uuid__": "4abc1129-697b-4c2e-9356-ece5b875e198",
+      "__uuid__": "b6868574-e309-4001-91d6-60c8fb5f6eb8",
       "__expectedType__": "cc.AnimationClip"
     },
     "_id": ""
