@@ -14,11 +14,11 @@ export class JumpPointSpriteActivator extends Component {
     @property(Node)
     spriteContainerNode: Node | null = null;
 
-    @property(Label)
-    displayLabel: Label | null = null;
+   // @property(Label)
+ //   displayLabel: Label | null = null;
 
-    @property(Label)
-    displayLabelLand: Label | null = null;
+   // @property(Label)
+  //  displayLabelLand: Label | null = null;
 
     @property({ type: AnimatedRichTextNumber, tooltip: 'AnimatedRichTextNumber for land packshot money' })
     landPackshotMoney: AnimatedRichTextNumber | null = null;
@@ -108,12 +108,12 @@ export class JumpPointSpriteActivator extends Component {
         }
 
         if (!JumpPointSpriteActivator.hasReset) {
-            if (this.displayLabel) {
-                this.displayLabel.string = '0.00 €';
-            }
-            if (this.displayLabelLand) {
-                this.displayLabelLand.string = '0.00 €';
-            }
+            // if (this.displayLabel) {
+            //     this.displayLabel.string = '0.00 €';
+            // }
+            // if (this.displayLabelLand) {
+            //     this.displayLabelLand.string = '0.00 €';
+            // }
             JumpPointSpriteActivator.hasReset = true;
         }
 
@@ -159,41 +159,41 @@ export class JumpPointSpriteActivator extends Component {
 
             this.spriteContainerNode.active = true;
             this._isSpriteActive = true;
-            this.animateValue();
+           // this.animateValue();
         }
     }
 
-    private animateValue() {
-        if (this.displayLabel) {
-            tween(this.displayLabel).stop();
-            let currentValue = parseFloat(this.displayLabel.string.replace(' €', '')) || 0;
-            const animObject = { value: currentValue };
-            tween(animObject)
-                .to(this.animationDuration, { value: this.targetValue }, {
-                    onUpdate: (target: { value: number }) => {
-                        this.displayLabel!.string = `${this.formatNumber(target.value)} €`;
-                    },
-                    onComplete: () => {
-                        this.displayLabel!.string = `${this.formatNumber(this.targetValue)} €`;
-                    }
-                })
-                .start();
-        }
+    // private animateValue() {
+    //     if (this.displayLabel) {
+    //         tween(this.displayLabel).stop();
+    //         let currentValue = parseFloat(this.displayLabel.string.replace(' €', '')) || 0;
+    //         const animObject = { value: currentValue };
+    //         tween(animObject)
+    //             .to(this.animationDuration, { value: this.targetValue }, {
+    //                 onUpdate: (target: { value: number }) => {
+    //                     this.displayLabel!.string = `${this.formatNumber(target.value)} €`;
+    //                 },
+    //                 onComplete: () => {
+    //                     this.displayLabel!.string = `${this.formatNumber(this.targetValue)} €`;
+    //                 }
+    //             })
+    //             .start();
+    //     }
 
-        if (this.displayLabelLand) {
-            tween(this.displayLabelLand).stop();
-            let currentValueLand = parseFloat(this.displayLabelLand.string.replace(' €', '')) || 0;
-            const animObjectLand = { value: currentValueLand };
-            tween(animObjectLand)
-                .to(this.animationDuration, { value: this.targetValue }, {
-                    onUpdate: (target: { value: number }) => {
-                        this.displayLabelLand!.string = `${this.formatNumber(target.value)} €`;
-                    },
-                    onComplete: () => {
-                        this.displayLabelLand!.string = `${this.formatNumber(this.targetValue)} €`;
-                    }
-                })
-                .start();
-        }
-    }
+    //     if (this.displayLabelLand) {
+    //         tween(this.displayLabelLand).stop();
+    //         let currentValueLand = parseFloat(this.displayLabelLand.string.replace(' €', '')) || 0;
+    //         const animObjectLand = { value: currentValueLand };
+    //         tween(animObjectLand)
+    //             .to(this.animationDuration, { value: this.targetValue }, {
+    //                 onUpdate: (target: { value: number }) => {
+    //                     this.displayLabelLand!.string = `${this.formatNumber(target.value)} €`;
+    //                 },
+    //                 onComplete: () => {
+    //                     this.displayLabelLand!.string = `${this.formatNumber(this.targetValue)} €`;
+    //                 }
+    //             })
+    //             .start();
+    //     }
+    // }
 }
