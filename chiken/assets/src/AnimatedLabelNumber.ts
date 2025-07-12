@@ -1,10 +1,13 @@
-import { _decorator, Component, RichText, tween, CCInteger, CCFloat, Tween   } from 'cc';
+import { _decorator, Component, RichText, tween, CCInteger, CCFloat, Tween } from 'cc';
 const { ccclass, property } = _decorator;
 
 @ccclass('AnimatedRichTextNumber')
 export class AnimatedRichTextNumber extends Component {
     @property({ type: RichText })
-    private targetRichText: RichText | null = null;
+    private integerRichText: RichText | null = null; // Для целой части
+
+    @property({ type: RichText })
+    private decimalRichText: RichText | null = null; // Для дробной части и суффикса EUR
 
     @property({ type: CCInteger, visible: true, serializable: true })
     private _initialValue: number = 0;
@@ -24,49 +27,46 @@ export class AnimatedRichTextNumber extends Component {
     private _currentDisplayedValue: number = 0;
     private _activeTween: Tween<any> | null = null;
 
-    private formatValue(value: number): string {
+    private formatIntegerPart(value: number): string {
+        return Math.floor(value).toString();
+    }
+
+    private formatDecimalPart(value: number): string {
         if (this.roundToInt) {
-            let formattedValue = Math.floor(value).toString();
-            if (this.addEurSuffix) {
-                formattedValue += ' EUR';
-            }
-            return formattedValue;
+            return this.addEurSuffix ? ' EUR' : '';
         } else {
-            // Split the number into integer and decimal parts
-            const [integerPart, decimalPart] = value.toFixed(2).split('.');
-            // Format with rich text: integer part uses default size, decimal part, comma, and EUR use specified size
-            let formattedValue = `${integerPart}<size=${this.decimalFontSize}>,<color=#FFFFFF>${decimalPart}${this.addEurSuffix ? ' EUR' : ''}</color></size>`;
-            return formattedValue;
+            const [, decimalPart] = value.toFixed(2).split('.');
+            return `<size=${this.decimalFontSize}>,${decimalPart}${this.addEurSuffix ? ' EUR' : ''}</size>`;
         }
     }
 
     onLoad() {
-        if (!this.targetRichText) {
-            this.targetRichText = this.getComponent(RichText);
-        }
-
-        if (!this.targetRichText) {
-            console.warn(`AnimatedRichTextNumber on ${this.node.name}: No targetRichText found, disabling component`);
+        if (!this.integerRichText || !this.decimalRichText) {
+            console.warn(`AnimatedRichTextNumber on ${this.node.name}: Missing integerRichText or decimalRichText, disabling component`);
             this.enabled = false;
             return;
         }
 
-        console.log(`AnimatedRichTextNumber on ${this.node.name}: onLoad, initialValue=${this.initialValue}`);
+        console.log(`AnimatedRichTextNumber on ${this.node.name}: onLoad, initialValue=${this._initialValue}`);
         this._currentDisplayedValue = 0;
-        this.targetRichText.string = this.formatValue(this._currentDisplayedValue);
+        this.integerRichText.string = this.formatIntegerPart(this._currentDisplayedValue);
+        this.decimalRichText.string = this.formatDecimalPart(this._currentDisplayedValue);
     }
 
     onEnable() {
-        console.log(`AnimatedRichTextNumber on ${this.node.name}: onEnable, animating to initialValue=${this.initialValue}`);
+        console.log(`AnimatedRichTextNumber on ${this.node.name}: onEnable, animating to initialValue=${this._initialValue}`);
         this._currentDisplayedValue = 0;
-        this.targetRichText!.string = this.formatValue(this._currentDisplayedValue);
+        if (this.integerRichText && this.decimalRichText) {
+            this.integerRichText.string = this.formatIntegerPart(this._currentDisplayedValue);
+            this.decimalRichText.string = this.formatDecimalPart(this._currentDisplayedValue);
+        }
 
-        this.animateTo(this.initialValue, this.animationDuration);
+        this.animateTo(this._initialValue, this.animationDuration);
     }
 
     public animateTo(targetValue: number, duration?: number) {
-        if (!this.targetRichText) {
-            console.warn(`AnimatedRichTextNumber on ${this.node.name}: No targetRichText for animation`);
+        if (!this.integerRichText || !this.decimalRichText) {
+            console.warn(`AnimatedRichTextNumber on ${this.node.name}: Missing integerRichText or decimalRichText for animation`);
             return;
         }
 
@@ -81,13 +81,15 @@ export class AnimatedRichTextNumber extends Component {
         this._activeTween = tween(animProxy)
             .to(duration !== undefined ? duration : this.animationDuration, { value: targetValue }, {
                 onUpdate: (target: { value: number }) => {
-                    if (this.targetRichText) {
-                        this.targetRichText.string = this.formatValue(target.value);
+                    if (this.integerRichText && this.decimalRichText) {
+                        this.integerRichText.string = this.formatIntegerPart(target.value);
+                        this.decimalRichText.string = this.formatDecimalPart(target.value);
                     }
                 },
                 onComplete: () => {
-                    if (this.targetRichText) {
-                        this.targetRichText.string = this.formatValue(targetValue);
+                    if (this.integerRichText && this.decimalRichText) {
+                        this.integerRichText.string = this.formatIntegerPart(targetValue);
+                        this.decimalRichText.string = this.formatDecimalPart(targetValue);
                     }
                     this._currentDisplayedValue = targetValue;
                     this._activeTween = null;
@@ -98,8 +100,8 @@ export class AnimatedRichTextNumber extends Component {
     }
 
     public setValue(value: number) {
-        if (!this.targetRichText) {
-            console.warn(`AnimatedRichTextNumber on ${this.node.name}: No targetRichText for setValue`);
+        if (!this.integerRichText || !this.decimalRichText) {
+            console.warn(`AnimatedRichTextNumber on ${this.node.name}: Missing integerRichText or decimalRichText for setValue`);
             return;
         }
         if (this._activeTween) {
@@ -107,7 +109,8 @@ export class AnimatedRichTextNumber extends Component {
             this._activeTween = null;
         }
         this._currentDisplayedValue = value;
-        this.targetRichText.string = this.formatValue(value);
+        this.integerRichText.string = this.formatIntegerPart(value);
+        this.decimalRichText.string = this.formatDecimalPart(value);
         console.log(`AnimatedRichTextNumber on ${this.node.name}: setValue called with ${value}`);
     }
 
