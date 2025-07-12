@@ -35,7 +35,7 @@ export class AnimatedRichTextNumber extends Component {
             // Split the number into integer and decimal parts
             const [integerPart, decimalPart] = value.toFixed(2).split('.');
             // Format with rich text: integer part uses default size, decimal part, comma, and EUR use specified size
-            let formattedValue = `${integerPart}<size=${this.decimalFontSize}>,<color=#FFFFFF>${decimalPart}${this.addEurSuffix ? ' EUR' : ''}</color></size>`;
+            let formattedValue = `${integerPart}<size=${this.decimalFontSize}>,<color=#000000>${decimalPart}${this.addEurSuffix ? ' EUR' : ''}</color></size>`;
             return formattedValue;
         }
     }
