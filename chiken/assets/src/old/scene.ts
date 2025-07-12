@@ -1,5 +1,5 @@
 import { _decorator, Button, Color, Component, instantiate, Label, Node, Prefab, Sprite } from 'cc';
-import super_html_playable from './super_html/super_html_playable';
+import super_html_playable from '../super_html/super_html_playable';
 const { ccclass, property } = _decorator;
 
 @ccclass('scene')

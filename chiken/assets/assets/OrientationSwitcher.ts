@@ -1,5 +1,5 @@
 import { _decorator, Component, Node, view } from 'cc';
-import { CameraFollow } from '../src/CameraFollow';
+import { CameraFollow } from '../src/old/CameraFollow';
 const { ccclass, property } = _decorator;
 
 @ccclass('OrientationSwitcher')
